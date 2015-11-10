@@ -43,18 +43,3 @@ EXAMPLE OUTPUT
     (39) running on-demand instances
     (36) reservations
     (17) unused reservations
-
-In this example, you can easily see that an m2.2xlarge was spun up in the wrong AZ (us-east-1b vs. us-east-1a), as well as an m1.small. The "Instance not reserved" section shows that you could benefit from reserving:
-
-* (1) t1.micro
-* (1) m1.small (not 2, since you'll likely want to move your us-east-1b small to us-east-1d)
-* (3) m1.medium
-
-
-TODO
-====
-
-- Add some sort of sorting, by Availability Zone/instance type
-- Add VPC support
-- Add option to use API to purchase the additional reservations (need to be EXTREMELY careful here, any mistake or miscommunication could cost quite a bit of money)
-- Windows? Not taking Windows reserved instances into account
