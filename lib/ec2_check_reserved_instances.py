@@ -31,10 +31,15 @@ def main():
 			else:
 				az = instance.placement
 				instance_type = instance.instance_type
+				logger.debug("Running instance: %s"% (instance.__dict__))
+				if not instance.vpc_id :
+					location = u'ec2'
+				else:
+					location = u'vpc'
 				platform = instance.platform
 				if not platform:
 					platform = u'linux'
-				running_instances[ (instance_type, az, platform ) ] = running_instances.get( (instance_type, az, platform ) , 0 ) + 1
+				running_instances[ (instance_type, az, platform, location ) ] = running_instances.get( (instance_type, az, platform, location ) , 0 ) + 1
 
 
 	logger.debug("Running instances: %s"% pformat(running_instances))
@@ -52,7 +57,11 @@ def main():
 				platform = u'windows'
 			else:
 				platform = u'linux'
-			reserved_instances[( instance_type, az, platform) ] = reserved_instances.get ( (instance_type, az, platform ), 0 )  + reserved_instance.instance_count
+			if "VPC" in description:
+				location = u'vpc'
+			else:
+				location = u'ec2'
+			reserved_instances[( instance_type, az, platform, location) ] = reserved_instances.get ( (instance_type, az, platform, location), 0 )  + reserved_instance.instance_count
 
 	logger.debug("Reserved instances: %s"% pformat(reserved_instances))
 
@@ -72,7 +81,7 @@ def main():
 		print "Congratulations, you have no unused reservations"
 	else:
 		for unused_reservation in unused_reservations:
-			print "UNUSED RESERVATION!\t(%s)\t%s\t%s\t%s" % ( unused_reservations[ unused_reservation ], unused_reservation[0],unused_reservation[2], unused_reservation[1] )
+			print "UNUSED RESERVATION!\t(%s)\t%s\t%s\t%s\t%s" % ( unused_reservations[ unused_reservation ], unused_reservation[0],unused_reservation[2],unused_reservation[3], unused_reservation[1] )
 
 	print ""
 
@@ -81,7 +90,7 @@ def main():
 		print "Congratulations, you have no unreserved instances"
 	else:
 		for unreserved_instance in unreserved_instances:
-			print "Instance not reserved:\t(%s)\t%s\t%s\t%s" % ( unreserved_instances[ unreserved_instance ], unreserved_instance[0], unreserved_instance[2], unreserved_instance[1] )
+			print "Instance not reserved:\t(%s)\t%s\t%s\t%s\t%s" % ( unreserved_instances[ unreserved_instance ], unreserved_instance[0], unreserved_instance[2], unreserved_instance[3], unreserved_instance[1] )
 
 	qty_unused_reservations = reduce( lambda x, y: x+y, unused_reservations.values() )
 	qty_running_instances = reduce( lambda x, y: x+y, running_instances.values() )
