@@ -18,27 +18,31 @@ EXAMPLE OUTPUT
 
     $ ec2-check-reserved-instances --region eu-west-1
     
-    UNUSED RESERVATION!	(1)	m3.large	linux	eu-west-1a
-    UNUSED RESERVATION!	(2)	m3.large	linux	eu-west-1b
-    UNUSED RESERVATION!	(1)	t2.medium	linux	eu-west-1a
-    UNUSED RESERVATION!	(1)	m4.large	linux	eu-west-1b
-    UNUSED RESERVATION!	(1)	m3.large	linux	eu-west-1c
-    UNUSED RESERVATION!	(1)	t2.large	linux	eu-west-1b
-    UNUSED RESERVATION!	(2)	t2.small	linux	eu-west-1b
+    UNUSED RESERVATION!	(1)	m3.large	linux	vpc	eu-west-1c
+    UNUSED RESERVATION!	(4)	m1.medium	linux	vpc	eu-west-1c
+    UNUSED RESERVATION!	(1)	m3.large	linux	vpc	eu-west-1a
+    UNUSED RESERVATION!	(4)	m1.medium	linux	vpc	eu-west-1a
+    UNUSED RESERVATION!	(2)	t2.small	linux	vpc	eu-west-1b
+    UNUSED RESERVATION!	(1)	m4.large	linux	vpc	eu-west-1b
+    UNUSED RESERVATION!	(1)	t2.medium	linux	vpc	eu-west-1a
+    UNUSED RESERVATION!	(1)	t2.large	linux	vpc	eu-west-1b
+    UNUSED RESERVATION!	(2)	m3.large	linux	vpc	eu-west-1b
 
-    Instance not reserved:	(2)	c4.large	linux	eu-west-1a
-    Instance not reserved:	(1)	t2.large	linux	eu-west-1a
-    Instance not reserved:	(1)	c1.medium	linux	eu-west-1c
-    Instance not reserved:	(1)	m1.large	linux	eu-west-1a
-    Instance not reserved:	(1)	m4.large	windows	eu-west-1b
-    Instance not reserved:	(2)	t2.small	windows	eu-west-1b
-    Instance not reserved:	(1)	m1.medium	linux	eu-west-1b
-    Instance not reserved:	(1)	t2.large	linux	eu-west-1c
-    Instance not reserved:	(2)	m1.large	linux	eu-west-1b
+    Instance not reserved:	(1)	t2.large	linux	vpc	eu-west-1c
+    Instance not reserved:	(1)	m1.medium	linux	ec2	eu-west-1b
+    Instance not reserved:	(4)	m1.medium	linux	ec2	eu-west-1c
+    Instance not reserved:	(2)	m1.large	linux	ec2	eu-west-1b
+    Instance not reserved:	(1)	m4.large	windows	vpc	eu-west-1b
+    Instance not reserved:	(2)	c4.large	linux	vpc	eu-west-1a
+    Instance not reserved:	(4)	m1.medium	linux	ec2	eu-west-1a
+    Instance not reserved:	(1)	m1.large	linux	ec2	eu-west-1a
+    Instance not reserved:	(1)	t2.large	linux	vpc	eu-west-1a
+    Instance not reserved:	(1)	c1.medium	linux	ec2	eu-west-1c
+    Instance not reserved:	(2)	t2.small	windows	vpc	eu-west-1b
 
     (39) running on-demand instances
     (36) reservations
-    (9) unused reservations
+    (17) unused reservations
 
 In this example, you can easily see that an m2.2xlarge was spun up in the wrong AZ (us-east-1b vs. us-east-1a), as well as an m1.small. The "Instance not reserved" section shows that you could benefit from reserving:
 
