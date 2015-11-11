@@ -12,6 +12,7 @@ def main():
 	parser = argparse.ArgumentParser(description='Cross reference existing reservations to current instances.')
 	parser.add_argument('--log', default="WARN", help='Change log level (default: WARN)')
 	parser.add_argument('--region', default='us-east-1', help='AWS Region to connect to')
+	parser.add_argument('--include-reserved-instance-ids', default=False, help='Flag to include Reserved Instance Ids in Unused instance report')
 
 	args = parser.parse_args()
 
@@ -45,6 +46,7 @@ def main():
 	logger.debug("Running instances: %s"% pformat(running_instances))
 
 	reserved_instances = {}
+	reserved_instances_ids = {}
 	for reserved_instance in ec2_conn.get_all_reserved_instances():
 		if reserved_instance.state != "active":
 			logger.debug( "Excluding reserved instances %s: no longer active\n" % ( reserved_instance.id ) )
@@ -61,7 +63,13 @@ def main():
 				location = u'vpc'
 			else:
 				location = u'ec2'
-			reserved_instances[( instance_type, az, platform, location) ] = reserved_instances.get ( (instance_type, az, platform, location), 0 )  + reserved_instance.instance_count
+			instance_signature = ( instance_type, az, platform, location)
+			reserved_instances[instance_signature] = reserved_instances.get ( instance_signature, 0 )  + reserved_instance.instance_count
+			if instance_signature not in reserved_instances_ids :
+				#print "Resetting instance_signature: (%s)" % (instance_signature)
+				reserved_instances_ids[instance_signature] = []
+			logger.debug("inserting reserved_instance_id (%s) into list (%s)" % (instance_signature, reserved_instances_ids[instance_signature]))
+			reserved_instances_ids[instance_signature].append(reserved_instance.id)
 
 	logger.debug("Reserved instances: %s"% pformat(reserved_instances))
 
@@ -82,6 +90,10 @@ def main():
 	else:
 		for unused_reservation in unused_reservations:
 			print "UNUSED RESERVATION!\t(%s)\t%s\t%s\t%s\t%s" % ( unused_reservations[ unused_reservation ], unused_reservation[0],unused_reservation[2],unused_reservation[3], unused_reservation[1] )
+			instance_signature = ( unused_reservation[0], unused_reservation[1], unused_reservation[2], unused_reservation[3])
+			if args.include_reserved_instance_ids:
+				for id in reserved_instances_ids[instance_signature]:
+					print "\tReserved Instance ID : %s" % (id)
 
 	print ""
 
