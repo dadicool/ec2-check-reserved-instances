@@ -4,7 +4,7 @@ import sys
 import os
 import boto
 import boto.ec2
-import boto.rds
+import boto.rds2
 import logging
 from pprint import pformat,pprint
 import argparse
@@ -124,5 +124,97 @@ def main():
 	
 		print "\n(%s) running on-demand instances\n(%s) ec2 reservations\n(%s) unused ec2 reservations" % ( qty_running_ec2_instances, qty_ec2_reserved_instances,qty_unused_ec2_reservations )
 	else :
-		print "Skipping EC2\n"
+		print "Skipping EC2 checks\n"
 
+	if u'rds' in services :
+		logging.basicConfig(level=getattr(logging,args.log))
+		logger = logging.getLogger('rds-check')
+	
+		rds_conn = boto.rds2.connect_to_region(args.region)
+		rds_instances = rds_conn.describe_db_instances()[u'DescribeDBInstancesResponse'][u'DescribeDBInstancesResult'][u'DBInstances']
+		logger.debug("FOO -- instances %s\n" % ( rds_instances ) )
+	
+		running_rds_instances = {}
+		for instance in rds_instances:
+			if instance[u'DBInstanceStatus'] != u'available':
+				logger.debug("Disqualifying instance %s: not running\n" % ( instance.id ) )
+			else:
+				instance_type = instance[u'DBInstanceClass']
+				engine = instance[u'Engine']
+				multiAZ = instance[u'MultiAZ']
+				logger.debug("Running instance: %s"% (instance))
+				instance_signature = (instance_type, engine, multiAZ)
+				running_rds_instances[ instance_signature ] = running_rds_instances.get( instance_signature , 0 ) + 1
+	
+	
+		logger.debug("FOO -- Running instances: %s"% pformat(running_rds_instances))
+	
+		reserved_rds_instances = {}
+		reserved_rds_instances_ids = {}
+		logger.debug("FOO -- instances %s\n" % ( rds_conn.describe_reserved_db_instances() ) )
+		for reserved_instance in rds_conn.describe_reserved_db_instances()[u'DescribeReservedDBInstancesResponse'][u'DescribeReservedDBInstancesResult'][u'ReservedDBInstances'] :
+			if reserved_instance[u'State'] != "active":
+				logger.debug( "Excluding reserved instances %s: no longer active\n" % ( reserved_instance.id ) )
+			else:
+				instance_type = reserved_instance[u'DBInstanceClass']
+				engine = reserved_instance[u'ProductDescription']
+				if engine == u'postgresql':
+					engine = 'postgres'
+				multiAZ = reserved_instance[u'MultiAZ']
+				instance_signature = (instance_type, engine, multiAZ)
+				reserved_rds_instances[instance_signature] = reserved_rds_instances.get ( instance_signature, 0 )  + reserved_instance[u'DBInstanceCount']
+				if instance_signature not in reserved_rds_instances_ids :
+					#print "Resetting instance_signature: (%s)" % (instance_signature)
+					reserved_rds_instances_ids[instance_signature] = []
+				logger.debug("inserting reserved_instance_id (%s) into list (%s)" % (instance_signature, reserved_rds_instances_ids[instance_signature]))
+				reserved_rds_instances_ids[instance_signature].append(reserved_instance[u'ReservedDBInstanceId'])
+	
+		logger.debug("Reserved instances: %s"% pformat(reserved_rds_instances))
+	
+		# this dict will have a positive number if there are unused reservations
+		# and negative number if an instance is on demand
+		instance_diff = dict([(x, reserved_rds_instances[x] - running_rds_instances.get(x, 0 )) for x in reserved_rds_instances])
+	
+		# instance_diff only has the keys that were present in reserved_rds_instances. There's probably a cooler way to add a filtered dict here
+		for placement_key in running_rds_instances:
+			if not placement_key in reserved_rds_instances:
+				instance_diff[placement_key] = -running_rds_instances[placement_key]
+	
+		logger.debug('Instance diff: %s'% pformat(instance_diff))
+	
+		unused_rds_reservations = dict((key,value) for key, value in instance_diff.iteritems() if value > 0)
+		if unused_rds_reservations == {}:
+			print "Congratulations, you have no unused ec2 reservations"
+		else:
+			for unused_reservation in unused_rds_reservations:
+				print "UNUSED RESERVATION!\t(%s)\t%s\t%s\t%s" % ( unused_rds_reservations[ unused_reservation ], unused_reservation[0],unused_reservation[1],unused_reservation[2] )
+				instance_signature = ( unused_reservation[0], unused_reservation[1], unused_reservation[2])
+				if args.include_reserved_instance_ids:
+					for id in reserved_rds_instances_ids[instance_signature]:
+						print "\tReserved Instance ID : %s" % (id)
+
+		unreserved_rds_instances = dict((key,-value) for key, value in instance_diff.iteritems() if value < 0)
+		if unreserved_rds_instances == {}:
+			print "Congratulations, you have no unreserved instances"
+		else:
+			for unreserved_rds_instance in unreserved_rds_instances:
+				print "Instance not reserved:\t(%s)\t%s\t%s\t%s" % ( unreserved_rds_instances[ unreserved_rds_instance ], unreserved_rds_instance[0], unreserved_rds_instance[1], unreserved_rds_instance[2] )
+	
+		if len(unused_rds_reservations.values()) != 0:
+			qty_unused_rds_reservations = reduce( lambda x, y: x+y, unused_rds_reservations.values())
+		else:
+			qty_unused_rds_reservations = 0
+	
+		if len(running_rds_instances.values()) != 0:
+			qty_running_rds_instances = reduce( lambda x, y: x+y, running_rds_instances.values())
+		else:
+			qty_running_rds_instances = 0
+		
+		if len(reserved_rds_instances.values()) != 0:
+			qty_reserved_rds_instances = reduce( lambda x, y: x+y, reserved_rds_instances.values())
+		else:
+			qty_reserved_rds_instances = 0
+	
+		print "\n(%s) running on-demand instances\n(%s) rds reservations\n(%s) unused rds reservations" % ( qty_running_rds_instances, qty_reserved_rds_instances,qty_unused_rds_reservations )
+	else :
+		print "Skipping RDS checks\n"
