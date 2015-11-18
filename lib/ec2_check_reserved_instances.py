@@ -24,30 +24,29 @@ def main():
 		logger = logging.getLogger('ec2-check')
 	
 		ec2_conn = boto.ec2.connect_to_region(args.region)
-		ec2_reservations = ec2_conn.get_all_instances()
+		ec2_instances = ec2_conn.get_only_instances()
 	
 		running_ec2_instances = {}
-		for reservation in ec2_reservations:
-			for instance in reservation.instances:
-				if instance.state != "running":
-					logger.debug("Disqualifying instance %s: not running\n" % ( instance.id ) )
-				elif instance.spot_instance_request_id:
-					logger.debug("Disqualifying instance %s: spot\n" % ( instance.id ) )
+		for instance in ec2_instances:
+			if instance.state != "running":
+				logger.debug("Disqualifying instance %s: not running\n" % ( instance.id ) )
+			elif instance.spot_instance_request_id:
+				logger.debug("Disqualifying instance %s: spot\n" % ( instance.id ) )
+			else:
+				az = instance.placement
+				instance_type = instance.instance_type
+				logger.debug("Running instance: %s"% (instance.__dict__))
+				if not instance.vpc_id :
+					location = u'ec2'
 				else:
-					az = instance.placement
-					instance_type = instance.instance_type
-					logger.debug("Running instance: %s"% (instance.__dict__))
-					if not instance.vpc_id :
-						location = u'ec2'
-					else:
-						location = u'vpc'
-					platform = instance.platform
-					if not platform:
-						platform = u'linux'
-					running_ec2_instances[ (instance_type, az, platform, location ) ] = running_ec2_instances.get( (instance_type, az, platform, location ) , 0 ) + 1
+					location = u'vpc'
+				platform = instance.platform
+				if not platform:
+					platform = u'linux'
+				running_ec2_instances[ (instance_type, az, platform, location ) ] = running_ec2_instances.get( (instance_type, az, platform, location ) , 0 ) + 1
 	
 	
-		logger.debug("Running instances: %s"% pformat(running_ec2_instances))
+		logger.debug("FOO -- Running instances: %s"% pformat(running_ec2_instances))
 	
 		ec2_reserved_instances = {}
 		ec2_reserved_instances_ids = {}
@@ -126,3 +125,4 @@ def main():
 		print "\n(%s) running on-demand instances\n(%s) ec2 reservations\n(%s) unused ec2 reservations" % ( qty_running_ec2_instances, qty_ec2_reserved_instances,qty_unused_ec2_reservations )
 	else :
 		print "Skipping EC2\n"
+
