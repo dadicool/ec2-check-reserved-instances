@@ -75,6 +75,9 @@ def main():
 				ec2_reserved_instances_ids[instance_signature].append(reserved_instance.id)
 	
 		logger.debug("Reserved instances: %s"% pformat(ec2_reserved_instances))
+		
+		print "\nEC2 Checks"
+		print "=========="
 	
 		# this dict will have a positive number if there are unused reservations
 		# and negative number if an instance is on demand
@@ -97,9 +100,7 @@ def main():
 				if args.include_reserved_instance_ids:
 					for id in ec2_reserved_instances_ids[instance_signature]:
 						print "\tReserved Instance ID : %s" % (id)
-	
-		print ""
-	
+
 		unreserved_instances = dict((key,-value) for key, value in instance_diff.iteritems() if value < 0)
 		if unreserved_instances == {}:
 			print "Congratulations, you have no unreserved instances"
@@ -171,6 +172,9 @@ def main():
 	
 		logger.debug("Reserved instances: %s"% pformat(reserved_rds_instances))
 	
+		print "\nRDS Checks"
+		print "=========="
+		
 		# this dict will have a positive number if there are unused reservations
 		# and negative number if an instance is on demand
 		instance_diff = dict([(x, reserved_rds_instances[x] - running_rds_instances.get(x, 0 )) for x in reserved_rds_instances])
