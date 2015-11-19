@@ -138,7 +138,7 @@ def main():
 		running_rds_instances = {}
 		for instance in rds_instances:
 			if instance[u'DBInstanceStatus'] != u'available':
-				logger.debug("Disqualifying instance %s: not running\n" % ( instance.id ) )
+				logger.debug("Disqualifying instance %s: not running\n" % ( instance[u'DBInstanceIdentifier'] ) )
 			else:
 				instance_type = instance[u'DBInstanceClass']
 				engine = instance[u'Engine']
@@ -155,7 +155,7 @@ def main():
 		logger.debug("FOO -- instances %s\n" % ( rds_conn.describe_reserved_db_instances() ) )
 		for reserved_instance in rds_conn.describe_reserved_db_instances()[u'DescribeReservedDBInstancesResponse'][u'DescribeReservedDBInstancesResult'][u'ReservedDBInstances'] :
 			if reserved_instance[u'State'] != "active":
-				logger.debug( "Excluding reserved instances %s: no longer active\n" % ( reserved_instance.id ) )
+				logger.debug( "Excluding reserved instances %s: no longer active\n" % ( reserved_instance[u'ReservedDBInstanceId'] ) )
 			else:
 				instance_type = reserved_instance[u'DBInstanceClass']
 				engine = reserved_instance[u'ProductDescription']
