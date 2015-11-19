@@ -4,10 +4,10 @@ except:
   from distutils.core import setup
 
 setup(name='ec2-check-reserved-instances',
-      version='0.1',
+      version='0.8',
       py_modules=[],
       install_requires=[
-        'boto'
+        'boto>=2.38.0'
       ],
       packages=[ 
         'lib'
