@@ -22,6 +22,8 @@ def main():
 	if u'ec2' in services :
 		logging.basicConfig(level=getattr(logging,args.log))
 		logger = logging.getLogger('ec2-check')
+		# Dump some environment details
+		logger.debug("boto version = %s", boto.__version__)
 	
 		ec2_conn = boto.ec2.connect_to_region(args.region)
 		ec2_instances = ec2_conn.get_only_instances()
