@@ -5,6 +5,7 @@ import os
 import boto
 import boto.ec2
 import boto.rds2
+import boto.redshift
 import logging
 from pprint import pformat,pprint
 import argparse
@@ -135,7 +136,7 @@ def main():
 	
 		rds_conn = boto.rds2.connect_to_region(args.region)
 		rds_instances = rds_conn.describe_db_instances()[u'DescribeDBInstancesResponse'][u'DescribeDBInstancesResult'][u'DBInstances']
-		logger.debug("FOO -- instances %s\n" % ( rds_instances ) )
+		logger.debug("rds instances %s\n" % ( rds_instances ) )
 	
 		running_rds_instances = {}
 		for instance in rds_instances:
@@ -224,3 +225,95 @@ def main():
 		print "\n(%s) running on-demand instances\n(%s) rds reservations\n(%s) unused rds reservations" % ( qty_running_rds_instances, qty_reserved_rds_instances,qty_unused_rds_reservations )
 	else :
 		print "Skipping RDS checks\n"
+
+	if u'redshift' in services :
+		logging.basicConfig(level=getattr(logging,args.log))
+		logger = logging.getLogger('redshift-check')
+	
+		redshift_conn = boto.redshift.connect_to_region(args.region)
+		redshift_instances = redshift_conn.describe_clusters()[u'DescribeClustersResponse'][u'DescribeClustersResult'][u'Clusters']
+		logger.debug("Redshift clusters %s\n" % ( redshift_instances ) )
+	
+		running_redshift_instances = {}
+		for instance in redshift_instances:
+			if instance[u'ClusterStatus'] != u'available':
+				logger.debug("Disqualifying cluster %s: not running\n" % ( instance[u'ClusterIdentifier'] ) )
+			else:
+				instance_type = instance[u'NodeType']
+				instance_qty = instance[u'NumberOfNodes']
+				instance_signature = (instance_type)
+				running_redshift_instances[ instance_signature ] = running_redshift_instances.get( instance_signature , 0 ) + instance_qty
+	
+	
+		logger.debug("Running nodes: %s"% pformat(running_redshift_instances))
+	
+		reserved_redshift_instances = {}
+		reserved_redshift_instances_ids = {}
+		logger.debug("Redshift reserved nodes %s\n" % ( redshift_conn.describe_reserved_nodes() ) )
+		
+		for reserved_instance in redshift_conn.describe_reserved_nodes()[u'DescribeReservedNodesResponse'][u'DescribeReservedNodesResult'][u'ReservedNodes'] :
+			if reserved_instance[u'State'] != "active":
+				logger.debug( "Excluding reserved nodes %s: no longer active\n" % ( reserved_instance[u'ReservedNodeId'] ) )
+			else:
+				instance_type = reserved_instance[u'NodeType']
+				instance_qty = reserved_instance[u'NodeCount']
+				instance_signature = (instance_type)
+				reserved_redshift_instances[instance_signature] = reserved_redshift_instances.get ( instance_signature, 0 )  + instance_qty
+				if instance_signature not in reserved_redshift_instances_ids :
+					#print "Resetting instance_signature: (%s)" % (instance_signature)
+					reserved_redshift_instances_ids[instance_signature] = []
+				logger.debug("inserting reserved_instance_id (%s) into list (%s)" % (instance_signature, reserved_redshift_instances_ids[instance_signature]))
+				reserved_redshift_instances_ids[instance_signature].append(reserved_instance[u'ReservedNodeId'])
+	
+		logger.debug("Reserved node: %s"% pformat(reserved_redshift_instances))
+	
+		print "\Redshift Checks"
+		print "=========="
+		
+		# this dict will have a positive number if there are unused reservations
+		# and negative number if an instance is on demand
+		instance_diff = dict([(x, reserved_redshift_instances[x] - running_redshift_instances.get(x, 0 )) for x in reserved_redshift_instances])
+	
+		# instance_diff only has the keys that were present in reserved_redshift_instances. There's probably a cooler way to add a filtered dict here
+		for placement_key in running_redshift_instances:
+			if not placement_key in reserved_redshift_instances:
+				instance_diff[placement_key] = -running_redshift_instances[placement_key]
+	
+		logger.debug('Redshift Instance diff: %s'% pformat(instance_diff))
+	
+		unused_redshift_reservations = dict((key,value) for key, value in instance_diff.iteritems() if value > 0)
+		if unused_redshift_reservations == {}:
+			print "Congratulations, you have no unused redshift reservations"
+		else:
+			for unused_reservation in unused_redshift_reservations:
+				print "UNUSED RESERVATION!\t(%s)\t%s" % ( unused_redshift_reservations[ unused_reservation ], unused_reservation[0] )
+				instance_signature = ( unused_reservation[0])
+				if args.include_reserved_instance_ids:
+					for id in reserved_redshift_instances_ids[instance_signature]:
+						print "\tReserved Nodes ID : %s" % (id)
+
+		unreserved_redshift_instances = dict((key,-value) for key, value in instance_diff.iteritems() if value < 0)
+		if unreserved_redshift_instances == {}:
+			print "Congratulations, you have no unreserved nodes"
+		else:
+			for unreserved_redshift_instance in unreserved_redshift_instances:
+				print "Instance not reserved:\t(%s)\t%s" % ( unreserved_redshift_instances[ unreserved_redshift_instance ], unreserved_redshift_instance[0] )
+	
+		if len(unused_redshift_reservations.values()) != 0:
+			qty_unused_redshift_reservations = reduce( lambda x, y: x+y, unused_redshift_reservations.values())
+		else:
+			qty_unused_redshift_reservations = 0
+	
+		if len(running_redshift_instances.values()) != 0:
+			qty_running_redshift_instances = reduce( lambda x, y: x+y, running_redshift_instances.values())
+		else:
+			qty_running_redshift_instances = 0
+		
+		if len(reserved_redshift_instances.values()) != 0:
+			qty_reserved_redshift_instances = reduce( lambda x, y: x+y, reserved_redshift_instances.values())
+		else:
+			qty_reserved_redshift_instances = 0
+	
+		print "\n(%s) running on-demand instances\n(%s) redshift reservations\n(%s) unused redshift reservations" % ( qty_running_redshift_instances, qty_reserved_redshift_instances,qty_unused_redshift_reservations )
+	else :
+		print "Skipping Redshift checks\n"
