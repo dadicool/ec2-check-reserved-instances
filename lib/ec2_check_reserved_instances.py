@@ -267,7 +267,7 @@ def main():
 	
 		logger.debug("Reserved node: %s"% pformat(reserved_redshift_instances))
 	
-		print "\Redshift Checks"
+		print "\nRedshift Checks"
 		print "=========="
 		
 		# this dict will have a positive number if there are unused reservations
