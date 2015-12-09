@@ -43,3 +43,14 @@ EXAMPLE OUTPUT
     (39) running on-demand instances
     (36) reservations
     (17) unused reservations
+
+    $ ec2-check-reserved-instances --region eu-west-1 --service rds
+    
+    RDS Checks
+    ==========
+    UNUSED RESERVATION!	(1)	db.t2.small	mysql	True
+    Congratulations, you have no unreserved instances
+
+    (5) running on-demand instances
+    (6) rds reservations
+    (1) unused rds reservations
